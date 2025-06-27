@@ -1,2 +1,0 @@
-# This file keeps the uploads directory in git
-# The directory is used by the cleanup system but files are processed in-memory

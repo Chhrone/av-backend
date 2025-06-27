@@ -23,8 +23,37 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
+# Setup clean logging configuration
+import warnings
+import sys
+
+# Suppress specific warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="speechbrain")
+warnings.filterwarnings("ignore", category=UserWarning, module="torchaudio")
+warnings.filterwarnings("ignore", category=UserWarning, module="torchvision")
+warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub")
+warnings.filterwarnings("ignore", message=".*torchaudio._backend.set_audio_backend has been deprecated.*")
+warnings.filterwarnings("ignore", message=".*Failed to load image Python extension.*")
+warnings.filterwarnings("ignore", message=".*resume_download.*deprecated.*")
+warnings.filterwarnings("ignore", message=".*Some weights of Wav2Vec2Model were not initialized.*")
+warnings.filterwarnings("ignore", message=".*You should probably TRAIN this model.*")
+
+# Setup minimal logging - only show errors and critical info
+logging.basicConfig(
+    level=logging.WARNING,  # Only show warnings and errors
+    format='%(levelname)s: %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+
+# Suppress all verbose loggers
+logging.getLogger("speechbrain").setLevel(logging.ERROR)
+logging.getLogger("transformers").setLevel(logging.ERROR)
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+logging.getLogger("torch").setLevel(logging.ERROR)
+logging.getLogger("torchaudio").setLevel(logging.ERROR)
+logging.getLogger("uvicorn").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.access").setLevel(logging.ERROR)  # Disable access logs
+
 logger = logging.getLogger(__name__)
 
 # Inisialisasi FastAPI
@@ -115,15 +144,21 @@ def load_and_optimize_model():
     """Load model with optimizations"""
     global classifier
 
-    logger.info(f"Loading model on device: {config.DEVICE}")
+    # Suppress verbose output during model loading
+    print("Loading accent recognition model...")
     start_time = time.time()
 
     try:
-        classifier = foreign_class(
-            source=config.MODEL_SOURCE,
-            pymodule_file=config.PYMODULE_FILE,
-            classname=config.CLASSNAME
-        )
+        # Temporarily redirect stdout to suppress verbose model loading
+        import contextlib
+        from io import StringIO
+
+        with contextlib.redirect_stdout(StringIO()), contextlib.redirect_stderr(StringIO()):
+            classifier = foreign_class(
+                source=config.MODEL_SOURCE,
+                pymodule_file=config.PYMODULE_FILE,
+                classname=config.CLASSNAME
+            )
 
         # Move model to appropriate device
         if hasattr(classifier, 'to'):
@@ -138,9 +173,8 @@ def load_and_optimize_model():
                         classifier.mods.wav2vec2 = torch.compile(classifier.mods.wav2vec2)
                     if hasattr(classifier.mods, 'output_mlp'):
                         classifier.mods.output_mlp = torch.compile(classifier.mods.output_mlp)
-                logger.info("Model compiled successfully")
-            except Exception as e:
-                logger.warning(f"Model compilation failed: {e}")
+            except Exception:
+                pass  # Silently ignore compilation failures
 
         # Set model to evaluation mode
         classifier.eval()
@@ -150,15 +184,14 @@ def load_and_optimize_model():
             dummy_audio = torch.randn(1, 16000).to(config.DEVICE)
             with torch.no_grad():
                 _ = classifier.encode_batch(dummy_audio)
-            logger.info("Model warmed up successfully")
-        except Exception as e:
-            logger.warning(f"Model warmup failed: {e}")
+        except Exception:
+            pass  # Silently ignore warmup failures
 
         load_time = time.time() - start_time
-        logger.info(f"Model loaded and optimized in {load_time:.2f} seconds")
+        print(f"Model loaded and optimized in {load_time:.2f} seconds")
 
     except Exception as e:
-        logger.error(f"Model loading failed: {e}")
+        print(f"Model loading failed: {e}")
         raise RuntimeError(f"Model loading failed: {e}")
 
 # Load model saat aplikasi start-up
@@ -175,16 +208,16 @@ async def startup_event():
 
     # Start queue processor
     queue_processor_task = asyncio.create_task(process_request_queue())
-    logger.info("Queue processor started")
+    print("Queue processor started")
 
     # Start cleanup task if enabled
     if config.ENABLE_CLEANUP:
         cleanup_task = asyncio.create_task(periodic_cleanup())
-        logger.info(f"Cleanup system started (interval: {config.CLEANUP_INTERVAL}s)")
+        print("Cleanup system started")
 
         # Run initial cleanup
         cleanup_old_files()
-        logger.info("Initial cleanup completed")
+        print("Initial cleanup completed")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -198,7 +231,7 @@ async def shutdown_event():
             await queue_processor_task
         except asyncio.CancelledError:
             pass
-        logger.info("Queue processor stopped")
+        pass  # Silently stop queue processor
 
     # Stop cleanup task
     if cleanup_task:
@@ -207,7 +240,6 @@ async def shutdown_event():
             await cleanup_task
         except asyncio.CancelledError:
             pass
-        logger.info("Cleanup system stopped")
 
 def calculate_file_hash(file_content: bytes) -> str:
     """Calculate MD5 hash of file content for caching"""
@@ -237,9 +269,9 @@ def cleanup_old_files():
                             file_path.unlink()
                             files_deleted += 1
                             bytes_freed += file_size
-                            logger.info(f"Deleted old file: {file_path.name} ({file_size} bytes)")
-                        except Exception as e:
-                            logger.warning(f"Failed to delete {file_path}: {e}")
+                            pass  # Silently delete files
+                        except Exception:
+                            pass  # Silently ignore deletion errors
 
         # Clean system temp files related to our app (optional)
         temp_dir = Path(tempfile.gettempdir())
@@ -264,11 +296,10 @@ def cleanup_old_files():
         cleanup_stats["files_deleted"] += files_deleted
         cleanup_stats["bytes_freed"] += bytes_freed
 
-        if files_deleted > 0:
-            logger.info(f"Cleanup completed: {files_deleted} files deleted, {bytes_freed/1024:.1f} KB freed")
+        # Silently complete cleanup
 
-    except Exception as e:
-        logger.error(f"Cleanup error: {e}")
+    except Exception:
+        pass  # Silently ignore cleanup errors
 
 async def periodic_cleanup():
     """Background task for periodic cleanup"""
@@ -276,8 +307,7 @@ async def periodic_cleanup():
         try:
             await asyncio.sleep(config.CLEANUP_INTERVAL)
             cleanup_old_files()
-        except Exception as e:
-            logger.error(f"Periodic cleanup error: {e}")
+        except Exception:
             await asyncio.sleep(60)  # Wait 1 minute before retrying
 
 @lru_cache(maxsize=config.CACHE_SIZE)
@@ -323,8 +353,7 @@ def get_us_confidence_from_prob(out_prob: torch.Tensor) -> float:
             us_confidence = float(out_prob[us_index])
             return round(us_confidence * 100, 2)  # Convert to percentage
         return 0.0  # Return 0 if US not found
-    except Exception as e:
-        logger.warning(f"Failed to extract US confidence: {e}")
+    except Exception:
         return 0.0
 
 async def process_request_queue():
@@ -348,7 +377,6 @@ async def process_request_queue():
                     # Check cache first
                     if file_hash in result_cache:
                         result = result_cache[file_hash]
-                        logger.info(f"Queue: Cache hit for request {queued_request.request_id}")
                     else:
                         # Perform inference
                         us_confidence = cached_inference(file_hash, queued_request.file_content)
@@ -361,7 +389,6 @@ async def process_request_queue():
                             del result_cache[oldest_key]
 
                         result_cache[file_hash] = result
-                        logger.info(f"Queue: Processed request {queued_request.request_id}")
 
                     # Set the result
                     if not queued_request.future.cancelled():
@@ -370,15 +397,13 @@ async def process_request_queue():
                 except Exception as e:
                     if not queued_request.future.cancelled():
                         queued_request.future.set_exception(e)
-                    logger.error(f"Queue: Error processing request {queued_request.request_id}: {e}")
 
                 finally:
                     # Remove from active requests
                     active_requests.pop(queued_request.request_id, None)
                     request_queue.task_done()
 
-        except Exception as e:
-            logger.error(f"Queue processor error: {e}")
+        except Exception:
             await asyncio.sleep(1)
 
 # Queue processor will be started in startup event
@@ -410,8 +435,6 @@ async def identify_accent(file: UploadFile = File(...)):
             result = result_cache[file_hash]
             inference_time = time.time() - start_time
             monitor.log_request(inference_time, cache_hit=True)
-
-            logger.info(f"Cache hit for file hash: {file_hash[:8]}...")
             return JSONResponse(content=result)
 
         # Check if we can process immediately or need to queue
@@ -436,15 +459,11 @@ async def identify_accent(file: UploadFile = File(...)):
             await request_queue.put(queued_request)
             active_requests[request_id] = queued_request
 
-            logger.info(f"Request {request_id} queued. Queue size: {request_queue.qsize()}")
-
             # Wait for result with timeout
             try:
                 result = await asyncio.wait_for(future, timeout=config.REQUEST_TIMEOUT)
                 inference_time = time.time() - start_time
                 monitor.log_request(inference_time, cache_hit=False)
-
-                logger.info(f"Queued request {request_id} completed in {inference_time:.3f}s")
                 return JSONResponse(content=result)
 
             except asyncio.TimeoutError:
@@ -470,18 +489,14 @@ async def identify_accent(file: UploadFile = File(...)):
 
                     inference_time = time.time() - start_time
                     monitor.log_request(inference_time, cache_hit=False)
-
-                    logger.info(f"Direct processing completed in {inference_time:.3f}s for file: {file.filename}")
                     return JSONResponse(content=result)
 
                 except Exception as e:
-                    logger.error(f"Inference error: {str(e)}")
                     raise HTTPException(status_code=500, detail=f"Inference error: {str(e)}")
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     finally:

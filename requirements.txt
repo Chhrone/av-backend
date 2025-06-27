@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+speechbrain==0.5.16
+torch==2.1.2
+torchaudio==2.1.2
+SoundFile
+python-multipart
+numpy==1.26.0
+transformers==4.36.2
+psutil>=5.9.0

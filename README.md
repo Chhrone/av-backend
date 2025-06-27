@@ -422,10 +422,90 @@ curl http://localhost:8000/queue-status
 - Request timeout (30s default)
 - Only .wav files accepted
 
+## 📚 References and Citations
+
+This project uses the following models and libraries. Please cite them appropriately:
+
+### Accent Recognition Model
+This project uses the accent classification model from:
+- **Model**: [Jzuluaga/accent-id-commonaccent_xlsr-en-english](https://huggingface.co/Jzuluaga/accent-id-commonaccent_xlsr-en-english)
+- **Paper**: CommonAccent: Exploring Large Acoustic Pretrained Models for Accent Classification Based on CommonVoice
+
+```bibtex
+@article{zuluaga2023commonaccent,
+  title={CommonAccent: Exploring Large Acoustic Pretrained Models for Accent Classification Based on Common Voice},
+  author={Zuluaga-Gomez, Juan and Ahmed, Sara and Visockas, Danielius and Subakan, Cem},
+  journal={Interspeech 2023},
+  url={https://arxiv.org/abs/2305.18283},
+  year={2023}
+}
+```
+
+### XLSR Model
+The underlying XLSR model used for speech representation:
+
+```bibtex
+@article{conneau2020unsupervised,
+  title={Unsupervised cross-lingual representation learning for speech recognition},
+  author={Conneau, Alexis and Baevski, Alexei and Collobert, Ronan and Mohamed, Abdelrahman and Auli, Michael},
+  journal={arXiv preprint arXiv:2006.13979},
+  year={2020}
+}
+```
+
+### SpeechBrain Framework
+This project uses SpeechBrain for speech processing:
+
+```bibtex
+@misc{speechbrain,
+  title={{SpeechBrain}: A General-Purpose Speech Toolkit},
+  author={Mirco Ravanelli and Titouan Parcollet and Peter Plantinga and Aku Rouhe and Samuele Cornell and Loren Lugosch and Cem Subakan and Nauman Dawalatabad and Abdelwahab Heba and Jianyuan Zhong and Ju-Chieh Chou and Sung-Lin Yeh and Szu-Wei Fu and Chien-Feng Liao and Elena Rastorgueva and François Grondin and William Aris and Hwidong Na and Yan Gao and Renato De Mori and Yoshua Bengio},
+  year={2021},
+  eprint={2106.04624},
+  archivePrefix={arXiv},
+  primaryClass={eess.AS},
+  note={arXiv:2106.04624}
+}
+```
+
+### Wav2Vec2 Model
+The project uses Facebook's wav2vec2 model:
+
+```bibtex
+@article{baevski2020wav2vec,
+  title={wav2vec 2.0: A framework for self-supervised learning of speech representations},
+  author={Baevski, Alexei and Zhou, Yuhao and Mohamed, Abdelrahman and Auli, Michael},
+  journal={Advances in neural information processing systems},
+  volume={33},
+  pages={12449--12460},
+  year={2020}
+}
+```
+
+### Additional Libraries
+- **FastAPI**: Modern web framework for building APIs
+- **PyTorch**: Deep learning framework
+- **Torchaudio**: Audio processing library for PyTorch
+- **Uvicorn**: ASGI server implementation
+
+## 🙏 Acknowledgments
+
+- Thanks to Juan Pablo Zuluaga and team for the CommonAccent model
+- Thanks to the SpeechBrain team for the excellent speech processing toolkit
+- Thanks to Facebook AI Research for the wav2vec2 and XLSR models
+- Thanks to the CommonVoice project for providing the training data
+
 ## 📝 License
 
-[Add your license information here]
+This project is licensed under the MIT License.
+
+**Note**: The pre-trained models used in this project have their own licenses. Please refer to their respective repositories for licensing information:
+- [CommonAccent Model License](https://huggingface.co/Jzuluaga/accent-id-commonaccent_xlsr-en-english) - MIT License
+- [SpeechBrain License](https://github.com/speechbrain/speechbrain/blob/develop/LICENSE) - Apache 2.0 License
 
 ## 🤝 Support
 
-[Add your support/contact information here]
+For issues and questions:
+- Create an issue on GitHub
+- Check the troubleshooting section above
+- Review the API documentation

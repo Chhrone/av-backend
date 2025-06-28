@@ -9,6 +9,37 @@ import sys
 import os
 import warnings
 from pathlib import Path
+import torch
+
+def get_gpu_info():
+    """Get GPU information for display"""
+    try:
+        if torch.cuda.is_available():
+            gpu_count = torch.cuda.device_count()
+            current_device = torch.cuda.current_device()
+            gpu_name = torch.cuda.get_device_name(current_device)
+            cuda_version = torch.version.cuda
+            pytorch_version = torch.__version__
+
+            return {
+                "available": True,
+                "count": gpu_count,
+                "current_device": current_device,
+                "name": gpu_name,
+                "cuda_version": cuda_version,
+                "pytorch_version": pytorch_version
+            }
+        else:
+            return {
+                "available": False,
+                "pytorch_version": torch.__version__
+            }
+    except Exception as e:
+        return {
+            "available": False,
+            "error": str(e),
+            "pytorch_version": getattr(torch, '__version__', 'unknown')
+        }
 
 def setup_clean_environment():
     """Setup environment to suppress verbose output"""
@@ -54,6 +85,24 @@ def run_clean_server():
         return False
 
     print("✅ Virtual environment detected")
+
+    # Display GPU information
+    gpu_info = get_gpu_info()
+    if gpu_info["available"]:
+        print(f"🚀 GPU Acceleration: ENABLED")
+        print(f"   GPU: {gpu_info['name']}")
+        print(f"   CUDA Version: {gpu_info['cuda_version']}")
+        print(f"   PyTorch Version: {gpu_info['pytorch_version']}")
+        if gpu_info["count"] > 1:
+            print(f"   Available GPUs: {gpu_info['count']} (using GPU {gpu_info['current_device']})")
+    else:
+        print(f"💻 GPU Acceleration: DISABLED (CPU mode)")
+        print(f"   PyTorch Version: {gpu_info['pytorch_version']}")
+        if "error" in gpu_info:
+            print(f"   Note: {gpu_info['error']}")
+        else:
+            print(f"   Note: CUDA not available or not installed")
+
     print("Starting server...")
 
     # Determine python path based on OS

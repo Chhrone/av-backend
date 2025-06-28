@@ -63,9 +63,42 @@ source venv/bin/activate
 ```
 
 #### 3. Install Dependencies
+
+**Option A: CPU Only (Default)**
 ```bash
 pip install -r requirements.txt
 ```
+
+**Option B: GPU/CUDA Support (Recommended untuk performa lebih baik)**
+
+⚠️ **Penting**: Sesuaikan versi CUDA dengan GPU Anda!
+
+```bash
+# Untuk CUDA 11.8 (RTX 30xx, RTX 40xx series, dll)
+pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu118
+
+# Untuk CUDA 12.1 (GPU terbaru)
+pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu121
+
+# Install dependencies lainnya
+pip install -r requirements.txt
+```
+
+**Cara Cek Versi CUDA Anda:**
+```bash
+# Cek CUDA version
+nvidia-smi
+
+# Atau cek di Windows
+nvcc --version
+```
+
+**Kompatibilitas GPU:**
+- **CUDA 11.8**: RTX 20xx, RTX 30xx, RTX 40xx, GTX 16xx series
+- **CUDA 12.1**: RTX 40xx series (terbaru), RTX 30xx, RTX 20xx
+- **CPU Only**: Semua sistem (lebih lambat tapi tetap berfungsi)
+
+💡 **Tips**: Jika tidak yakin, gunakan CUDA 11.8 karena lebih kompatibel dengan berbagai GPU.
 
 #### 4. Download Models
 Model akan otomatis didownload saat pertama kali menjalankan API.

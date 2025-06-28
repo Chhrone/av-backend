@@ -75,13 +75,14 @@ def run_clean_server():
         print("Health check at: http://localhost:8000/health")
         print("\nPress Ctrl+C to stop the server\n")
         
-        # Start the server with minimal logging
+        # Start the server with clean logging
+        # The request/response logging is handled by middleware in main.py
         subprocess.run([
             str(python_path), "-m", "uvicorn", "main:app",
             "--host", "0.0.0.0",
             "--port", "8000",
             "--log-level", "warning",  # Only show warnings and errors from uvicorn
-            "--no-access-log"  # Disable access logs
+            "--no-access-log"  # Disable uvicorn access logs (we use custom middleware)
         ], check=True)
         
     except KeyboardInterrupt:

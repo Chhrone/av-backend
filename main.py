@@ -1,6 +1,7 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+import starlette.middleware.base as middleware_base
 import os
 import shutil
 import torch
@@ -58,6 +59,53 @@ logger = logging.getLogger(__name__)
 
 # Inisialisasi FastAPI
 app = FastAPI(title="Accent Recognition API")
+
+# Request logging middleware
+class RequestLoggingMiddleware(middleware_base.BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        import time
+
+        # Log incoming request
+        start_time = time.time()
+        timestamp = time.strftime("%H:%M:%S")
+
+        # Get client IP
+        client_ip = request.client.host if request.client else "unknown"
+
+        # Log request
+        if request.url.path == "/identify":
+            print(f"[{timestamp}] REQUEST {request.method} {request.url.path} from {client_ip}")
+        elif request.url.path == "/health":
+            print(f"[{timestamp}] HEALTH {request.method} {request.url.path} from {client_ip}")
+        elif request.url.path == "/docs" or request.url.path == "/openapi.json":
+            print(f"[{timestamp}] DOCS {request.method} {request.url.path} from {client_ip}")
+        elif request.url.path == "/":
+            print(f"[{timestamp}] ROOT {request.method} {request.url.path} from {client_ip}")
+        elif not request.url.path.startswith("/static"):  # Skip static files
+            print(f"[{timestamp}] API {request.method} {request.url.path} from {client_ip}")
+
+        # Process request
+        response = await call_next(request)
+
+        # Log response
+        process_time = time.time() - start_time
+        timestamp = time.strftime("%H:%M:%S")
+
+        if request.url.path == "/identify":
+            if response.status_code == 200:
+                print(f"[{timestamp}] RESPONSE: {response.status_code} OK ({process_time:.3f}s)")
+            else:
+                print(f"[{timestamp}] RESPONSE: {response.status_code} ERROR ({process_time:.3f}s)")
+        elif not request.url.path.startswith("/static") and request.url.path not in ["/docs", "/openapi.json"]:
+            if response.status_code == 200:
+                print(f"[{timestamp}] RESPONSE: {response.status_code} OK ({process_time:.3f}s)")
+            else:
+                print(f"[{timestamp}] RESPONSE: {response.status_code} ERROR ({process_time:.3f}s)")
+
+        return response
+
+# Add middleware
+app.add_middleware(RequestLoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
